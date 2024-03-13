@@ -147,7 +147,7 @@ kubernetes.io/pod/cluster_name/v1	    string: A cluster name
 ...
 ```
 
-If a scope type is unknown or not supported by the verifier, verification must fail.
+If a scope type is unknown or not supported by the verifier, verification MUST fail.
 If the scope matches the environment, verification passes. Otherwise, it MUST fail. A match is positive if all the (non-empty) scope values are equal to the environment values. In the example above:
 
 ```shell
@@ -169,7 +169,7 @@ cloud.google.com/project_id/v1      string: A project id
 ... 
 ```
 
-If a scope type is unknown or not supported by the verifier, verification must fail.
+If a scope type is unknown or not supported by the verifier, verification MUST fail.
 If the scope matches the environment, verification passes. Otherwise, it MUST fail. A match is positive if all the (non-empty) scope values are equal to the environment values. In the example above:
 
 ```shell
@@ -188,7 +188,7 @@ A Spiffe scope can be represented by (a subset of) the following fields:
 spiffe.io/id/v1 string: The Spiffe ID
 ```
 
-If a scope type is unknown or not supported by the verifier, verification must fail.
+If a scope type is unknown or not supported by the verifier, verification MUST fail.
 If the scope matches the environment, verification passes. Otherwise, it MUST fail. A match is positive if all the (non-empty) scope values are equal to the environment values. In the example above:
 
 ```shell
@@ -206,7 +206,7 @@ Anyone can define their own scope. To avoid scope name collisions, the scope nam
 my.myproject.com/resource/v1   string: resource for environment my.myproject.com
 ```
 
-If a scope type is unknown or not supported by the verifier, verification must fail.
+If a scope type is unknown or not supported by the verifier, verification MUST fail.
 
 ## Examples
 
