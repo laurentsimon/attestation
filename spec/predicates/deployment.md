@@ -156,8 +156,6 @@ attestation's "kubernetes.io/pod/cluster_id" == environment's "k8'scluster_id" A
 ...
 ```
 
-Unset scopes (either a scope type with an empty value or a non-present scope) are interpreted as "any value" and are ignored.
-
 #### GCP scope
 
 A GCP scope can be represented by (a subset of) the following fields:
@@ -178,8 +176,6 @@ attestation's "cloud.google.com/project_id" == environment's "GCP project ID" AN
 ...
 ```
 
-Unset scopes (either a scope type with an empty value or a non-present scope) are interpreted as "any value" and are ignored. 
-
 #### Spiffe
 
 A Spiffe scope can be represented by (a subset of) the following fields:
@@ -195,8 +191,6 @@ If the scope matches the environment, verification passes. Otherwise, it MUST fa
 attestation's "spiffe.io/id" == environment's "Spiffe ID" AND 
 ...
 ```
-
-Unset scopes (either a scope type with an empty value or a non-present scope) are interpreted as "any value" and are ignored.
 
 #### Custom scopes
 
