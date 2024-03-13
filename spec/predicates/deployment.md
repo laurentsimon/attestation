@@ -113,7 +113,7 @@ Summary:
 for troubleshooting and logging.
 - The `predicateType` URI includes the major version number and will always change whenever there is a backwards incompatible change.
 - Minor version changes are always backwards compatible and "monotonic". Such changes do not update the `predicateType`.
-- Producers MAY add custom scope types to the `scopes` field. To avoid type name collisions, a scope type MUST be an URI. See [examples](#supported-scopes).
+- Producers MAY add custom scope types to the `scopes` field. To avoid type name collisions, a scope type MUST be an URI. See [custom scopes](#custom-scopes).
 
 ### Verification
 
