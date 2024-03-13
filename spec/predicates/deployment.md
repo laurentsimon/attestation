@@ -10,8 +10,8 @@ To authoritatively express which environment an artifact is allowed to be deploy
 
 ## Use Cases
 
-When deploying an artifact (e.g., a container), we want to restrict the environment
-where the artifact is allowed to be deployed / run. The environment has access
+When deploying an artifact (e.g., a container), we want to restrict which environment
+the artifact is allowed to be deployed / run. The environment has access
 to resources we want to protect, such as a service account, a Spiffe ID, a Kubernetes pod ID, etc.
 The deployment attestation authoritatively binds an artifact to a deployment environment
 where an artifact is allowed to be deployed. 
