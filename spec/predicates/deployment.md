@@ -224,7 +224,7 @@ The attestation below intends to restrict the deployment of an image to run unde
 }
 ```
 
-Assume the admisson controller is authoritative for scope type "cloud.google.com/service_account/v1", then the attestation authentication verification layer passes,
+Assume the admisson controller is authoritative for scope type "cloud.google.com/service_account/v1", then the attestation authentication layer verification passes,
 because the only scope in the attestation is "cloud.google.com/service_account/v1". If the environment the image is about to be deployed runs under service account "sa-name@project.iam.gserviceaccount.com", the environment verification passes. Otherwise it fails.
 
 If the generator is _not_ authoritative for scope type "cloud.google.com/service_account/v1", then the attestation
@@ -252,9 +252,9 @@ and cluster ID "some-unique@clusterid".
 }
 ```
 
-Assume the admisson controller is authoritative for scope type "cloud.google.com/service_account/v1" and "kubernetes.io/pod/*", then the attestation authentication verification layer passes, because the only scopes in the attestation are of types "cloud.google.com/service_account/v1" and "kubernetes.io/pod/cluster_id/v1". If the environment the image is about to be deployed runs under service account "sa-name@project.iam.gserviceaccount.com" _AND_ the cluster ID is "some-unique@clusterid", the environment verification passes. Otherwise it fails.
+Assume the admisson controller is authoritative for scope type "cloud.google.com/service_account/v1" and "kubernetes.io/pod/*", then the attestation authentication layer verification passes, because the only scopes in the attestation are of types "cloud.google.com/service_account/v1" and "kubernetes.io/pod/cluster_id/v1". If the environment the image is about to be deployed runs under service account "sa-name@project.iam.gserviceaccount.com" _AND_ the cluster ID is "some-unique@clusterid", the environment verification passes. Otherwise it fails.
 
-If the generator is configured such that scopes "cloud.google.com/service_account/v1" and "kubernetes.io/pod/cluster_name" are required scopes and the only attestation available is the one above, then the attestation verification layer fails, because scope "kubernetes.io/pod/cluster_name" is not present in the attestation.
+If the generator is configured such that scopes "cloud.google.com/service_account/v1" and "kubernetes.io/pod/cluster_name" are required scopes and the only attestation available is the one above, then the attestation layer verification fails, because scope "kubernetes.io/pod/cluster_name" is not present in the attestation.
 
 ### Unrecognized scope
 
@@ -275,7 +275,7 @@ If the generator is configured such that scopes "cloud.google.com/service_accoun
 }
 ```
 
-Assume the admisson controller is authoritative for scope type "cloud.google.com/service_account/v1", then the attestation authentication verification layer fails, because the attestation contains an nnon-authoritative (and unrecognized) scope of type "my.custom-scope.com/some-field/v1".
+Assume the admisson controller is authoritative for scope type "cloud.google.com/service_account/v1", then the attestation authentication layer verification fails, because the attestation contains an nnon-authoritative (and unrecognized) scope of type "my.custom-scope.com/some-field/v1".
 
 ### No scope
 
