@@ -275,7 +275,7 @@ If the generator is configured such that scopes "cloud.google.com/service_accoun
 }
 ```
 
-Assume the admisson controller is authoritative for scope type "cloud.google.com/service_account/v1", then the attestation authentication layer verification fails, because the attestation contains an nnon-authoritative (and unrecognized) scope of type "my.custom-scope.com/some-field/v1".
+Assume the admisson controller is authoritative for scope type "cloud.google.com/service_account/v1", then the attestation authentication layer verification fails, because the attestation contains an non-authoritative (and unrecognized) scope of type "my.custom-scope.com/some-field/v1".
 
 ### No scope
 
@@ -293,5 +293,4 @@ Assume the admisson controller is authoritative for scope type "cloud.google.com
 
 The attestation above would pass verification regardless of the deployment environment.
 
-if there was a required scope type conrigured for verification, the environment verification would fail because the attestation contains
-no scopes.
+if there were a required scope type configured for verification, the attestation layer verification would fail because the attestation contains no scopes.
