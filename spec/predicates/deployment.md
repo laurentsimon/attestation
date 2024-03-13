@@ -130,8 +130,8 @@ The verification configuration MUST be done out-of-band and contain the followin
 
 Verification happens in two phases:
 
-1. Attestation authenticity verification. Performed by the "attestation layer", it takes as input an image, an attestation, an attestation signature and the trusted roots. It verifies the authenticity of the attestation using the trusted roots. If this verification fails, the attestation is considered invalid and MUST be rejected.
-2. Environment verification. Performed by the "environment layer", it takes as input the intoto payload and matches the scope fields against the deployment environment. Non-empty fields add constraints to the scope and are always interpreted as a logical "AND". The admission controller MUST compare each scope values to its corresponding environment values using an equality comparison. If the values are all equal, verification MUST pass. Otherwise, it MUST fail. Unset scopes (either a scope type with an empty value or a non-present scope) are interpreted as "any value" and are ignored. If a scope type is unknown or not supported by the verifier, verification MUST fail. 
+1. Attestation authenticity verification. Performed by the "attestation layer", it takes as input an image, an attestation, an attestation signature and the trusted roots. It verifies the authenticity of the attestation using the trusted roots. If this verification fails, the attestation is considered invalid and MUST be rejected. If a scope type is unknown or not supported by the verifier, verification MUST fail. 
+2. Environment verification. Performed by the "environment layer", it takes as input the intoto payload and matches the scope fields against the deployment environment. Non-empty fields add constraints to the scope and are always interpreted as a logical "AND". The admission controller MUST compare each scope values to its corresponding environment values using an equality comparison. If the values are all equal, verification MUST pass. Otherwise, it MUST fail. Unset scopes (either a scope type with an empty value or a non-present scope) are interpreted as "any value" and are ignored.
 
 ### Supported Scopes
 
@@ -147,6 +147,7 @@ kubernetes.io/pod/cluster_name/v1	    string: A cluster name
 ...
 ```
 
+If a scope type is unknown or not supported by the verifier, verification must fail.
 If the scope matches the environment, verification passes. Otherwise, it MUST fail. A match is positive if all the (non-empty) scope values are equal to the environment values. In the example above:
 
 ```shell
@@ -155,7 +156,7 @@ attestation's "kubernetes.io/pod/cluster_id" == environment's "k8'scluster_id" A
 ...
 ```
 
-Unset scopes (either a scope type with an empty value or a non-present scope) are interpreted as "any value" and are ignored. If a scope type is unknown or not supported by the verifier, verification MUST fail.
+Unset scopes (either a scope type with an empty value or a non-present scope) are interpreted as "any value" and are ignored.
 
 #### GCP scope
 
@@ -168,6 +169,7 @@ cloud.google.com/project_id/v1      string: A project id
 ... 
 ```
 
+If a scope type is unknown or not supported by the verifier, verification must fail.
 If the scope matches the environment, verification passes. Otherwise, it MUST fail. A match is positive if all the (non-empty) scope values are equal to the environment values. In the example above:
 
 ```shell
@@ -176,15 +178,17 @@ attestation's "cloud.google.com/project_id" == environment's "GCP project ID" AN
 ...
 ```
 
-Unset scopes (either a scope type with an empty value or a non-present scope) are interpreted as "any value" and are ignored. If a scope type is unknown or not supported by the verifier, verification must fail.
+Unset scopes (either a scope type with an empty value or a non-present scope) are interpreted as "any value" and are ignored. 
 
 #### Spiffe
+
 A Spiffe scope can be represented by (a subset of) the following fields:
 
 ```shell
 spiffe.io/id/v1 string: The Spiffe ID
 ```
 
+If a scope type is unknown or not supported by the verifier, verification must fail.
 If the scope matches the environment, verification passes. Otherwise, it MUST fail. A match is positive if all the (non-empty) scope values are equal to the environment values. In the example above:
 
 ```shell
@@ -192,9 +196,10 @@ attestation's "spiffe.io/id" == environment's "Spiffe ID" AND
 ...
 ```
 
-Unset scopes (either a scope type with an empty value or a non-present scope) are interpreted as "any value" and are ignored. If a scope type is unknown or not supported by the verifier, verification must fail.
+Unset scopes (either a scope type with an empty value or a non-present scope) are interpreted as "any value" and are ignored.
 
 #### Custom scopes
+
 Anyone can define their own scope. To avoid scope name collisions, the scope name must follow a "URI" convention, such as:
 
 ```shell
