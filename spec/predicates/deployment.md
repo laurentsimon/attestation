@@ -46,7 +46,7 @@ This predicate depends on the [in-toto Attestation Framework].
 ## Model
 
 This predicate is for the deployment stage of the software supply chain, where
-consumers want to bind an atifact to an deployment environment.
+consumers want to bind an atifact to a deployment environment.
 
 ## Schema
 
@@ -81,15 +81,15 @@ consumers want to bind an atifact to an deployment environment.
 
 ### Fields
 
-**`creationTime`, required** string ((Timestamp)[https://github.com/in-toto/attestation/blob/main/spec/v1/field_types.md#Timestamp])
+**`creationTime`, required** string ([Timestamp](https://github.com/in-toto/attestation/blob/main/spec/v1/field_types.md#Timestamp))
 
 The timestamp indicating what time the attesttion was created.
 
-**`decisionDetails.evidence`, optional** (list of (ResourceDescriptor)[https://github.com/in-toto/attestation/blob/main/spec/v1/resource_descriptor.md])
+**`decisionDetails.evidence`, optional** (list of [ResourceDescriptor](https://github.com/in-toto/attestation/blob/main/spec/v1/resource_descriptor.md))
 
 List of evidence used to make a decision. Resources may include attestations or other relevant evidence. 
 
-**`decisionDetails.policy`, optional** (list of (ResourceDescriptor)[https://github.com/in-toto/attestation/blob/main/spec/v1/resource_descriptor.md])
+**`decisionDetails.policy`, optional** (list of [ResourceDescriptor](https://github.com/in-toto/attestation/blob/main/spec/v1/resource_descriptor.md))
 
 List of policies used to make the decision, if any. 
 
