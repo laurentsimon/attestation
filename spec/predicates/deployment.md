@@ -28,7 +28,7 @@ operating systems. The same concepts apply to different types of environments, i
 These use cases are not hypothetical. Binding an artifact to its expected deployment environment is
 one of the principles used internally at Google; it is also a feature provided by [Google Cloud Binauthz](https://cloud.google.com/binary-authorization/).
 
-The decision to allow or deny a deployment request may happen "real-time", i.e. the control plane
+The decision to allow or deny a deployment request may happen in "real-time", i.e. the control plane
 may query an online authorization service at the time of the deployment. Such an authorization service
 requires low-latency / high-availability SLOs to avoid deployment outage. This is exarcebated in systems
 like Kubernetes where admission webhooks run for every pod deployed. Thus it is often desirable
@@ -36,7 +36,7 @@ to "shift-left" and perform an authorization evaluation ahead of time _before_ a
 reaches the control plane. The deployment attestation _is_ the proof of authorization that the control plane may
 use to make its final decision, instead of querying an online service itself. 
 Verification of the deployment attestation is simple, fast and may be performed entirely offline.
-Overall, this shift-left strategy has the following advantages: less likely to cause production issues,
+Overall, this shift-left strategy provides the following advantages: less likely to cause production issues,
 better debugging UX for devs, less auditing and production noise for SREs and security teams.
 
 ## Prerequisites
@@ -46,7 +46,7 @@ This predicate depends on the [in-toto Attestation Framework].
 ## Model
 
 This predicate is for the deployment stage of the software supply chain, where
-consumers want to bind an atifact to a deployment environment.
+consumers want to bind an artifact to a deployment environment.
 
 ## Schema
 
@@ -83,7 +83,7 @@ consumers want to bind an atifact to a deployment environment.
 
 **`creationTime`, required** string ([Timestamp](https://github.com/in-toto/attestation/blob/main/spec/v1/field_types.md#Timestamp))
 
-The timestamp indicating what time the attesttion was created.
+The timestamp indicating what time the attestation was created.
 
 **`decisionDetails.evidence`, optional** (list of [ResourceDescriptor](https://github.com/in-toto/attestation/blob/main/spec/v1/resource_descriptor.md))
 
@@ -124,14 +124,14 @@ The verification configuration MUST be done out-of-band and contain the followin
 1. Required: The "trusted roots". A trusted root defines an entity that is trusted to generate attestations. A trusted root MUST be configured with at least the following pieces of information:
     - Required: Which identity is trusted to generate the attestation. The identity may be a cryptographic public key, a Fulcio identity, etc.
     - Required: Which scope types the attestation generator is authoritative for.
-2. Optional: Required scopes, which is a set of mandatory scope types that must be non-empty for verification to pass. Images must have attestation(s) over each scope type in the set in order to be admitted. Required scopes are necessary in an attestation, but not sufficient; other scopes present in the attestation must match the current environment in order for it to be considered valid. 
+2. Optional: Required scopes, which is a set of mandatory scope types that MUST be non-empty for verification to pass. Images MUST have attestation(s) over each scope type in the set in order to be admitted. Required scopes are necessary in an attestation, but not sufficient; other scopes present in the attestation MUST match the current environment in order for it to be considered valid. 
 
 #### Logic
 
 Verification happens in two phases:
 
-1. Attestation authenticity verification. Performed by the "attestation layer", it takes as input an image, an attestation, an attestation signature and the trusted roots. It verifies the authenticity of the attestation using the trusted roots. If this verification fails, the attestation is considered invalid and MUST be rejected. If a scope type is unknown or not supported by the verifier, verification MUST fail. 
-2. Environment verification. Performed by the "environment layer", it takes as input the intoto payload and matches the scope fields against the deployment environment. Non-empty fields add constraints to the scope and are always interpreted as a logical "AND". The admission controller MUST compare each scope values to its corresponding environment values using an equality comparison. If the values are all equal, verification MUST pass. Otherwise, it MUST fail. Unset scopes (either a scope type with an empty value or a non-present scope) are interpreted as "any value" and are ignored.
+1. Attestation authenticity verification. Performed by the "attestation layer", it takes as input an image, an attestation, an attestation signature and the trusted roots. It verifies the authenticity of the attestation using the trusted roots. If this verification fails, the attestation is considered invalid and MUST be rejected. If a scope type is unknown or not supported by the verifier, verification MUST fail. If a scope type is non-empty and the generator is _not_ authoritative for the scope type, verification MUST fail.
+2. Environment verification. Performed by the "environment layer", it takes as input the intoto payload and matches the scope fields against the deployment environment. Non-empty fields add constraints to the scope and are always interpreted as a logical "AND". The admission controller MUST compare each scope values to its corresponding environment values using an equality comparison. If the values are all equal, verification passes. Otherwise, it MUST fail. Unset scopes (either a scope type with an empty value or a non-present scope) are interpreted as "any value" and are ignored.
 
 ### Supported Scopes
 
@@ -194,7 +194,7 @@ attestation's "spiffe.io/id" == environment's "Spiffe ID" AND
 
 #### Custom scopes
 
-Anyone can define their own scope. To avoid scope name collisions, the scope name must follow a "URI" convention, such as:
+Anyone can define their own scope. To avoid scope type name collisions, the scope type name MUST follow a "URI" convention, such as:
 
 ```shell
 my.myproject.com/resource/v1   string: resource for environment my.myproject.com
@@ -224,7 +224,7 @@ The attestation below intends to restrict the deployment of an image to run unde
 }
 ```
 
-Assume the admisson controller is authoritative for scope type "cloud.google.com/service_account/v1", then the attestation authentication layer verification passes,
+Let's assume the admisson controller is authoritative for scope type "cloud.google.com/service_account/v1". Then the attestation authentication layer verification passes,
 because the only scope in the attestation is "cloud.google.com/service_account/v1". If the environment the image is about to be deployed runs under service account "sa-name@project.iam.gserviceaccount.com", the environment verification passes. Otherwise it fails.
 
 If the generator is _not_ authoritative for scope type "cloud.google.com/service_account/v1", then the attestation
@@ -252,9 +252,9 @@ and cluster ID "some-unique@clusterid".
 }
 ```
 
-Assume the admisson controller is authoritative for scope type "cloud.google.com/service_account/v1" and "kubernetes.io/pod/*", then the attestation authentication layer verification passes, because the only scopes in the attestation are of types "cloud.google.com/service_account/v1" and "kubernetes.io/pod/cluster_id/v1". If the environment the image is about to be deployed runs under service account "sa-name@project.iam.gserviceaccount.com" _AND_ the cluster ID is "some-unique@clusterid", the environment verification passes. Otherwise it fails.
+Let's assume the admisson controller is authoritative for scope type "cloud.google.com/service_account/v1" and "kubernetes.io/pod/*". Then the attestation authentication layer verification passes, because the only scopes in the attestation are of types "cloud.google.com/service_account/v1" and "kubernetes.io/pod/cluster_id/v1". If the environment the image is about to be deployed runs under service account "sa-name@project.iam.gserviceaccount.com" _AND_ the cluster ID is "some-unique@clusterid", the environment verification passes. Otherwise it fails.
 
-If the generator is configured such that scopes "cloud.google.com/service_account/v1" and "kubernetes.io/pod/cluster_name" are required scopes and the only attestation available is the one above, then the attestation layer verification fails, because scope "kubernetes.io/pod/cluster_name" is not present in the attestation.
+If the trusted roots are configured such that required scopes are "cloud.google.com/service_account/v1" and "kubernetes.io/pod/cluster_name" and the only attestation available is the one above, then the attestation layer verification fails, because required scope type "kubernetes.io/pod/cluster_name" is empty in the attestation.
 
 ### Unrecognized scope
 
@@ -275,7 +275,7 @@ If the generator is configured such that scopes "cloud.google.com/service_accoun
 }
 ```
 
-Assume the admisson controller is authoritative for scope type "cloud.google.com/service_account/v1", then the attestation authentication layer verification fails, because the attestation contains an non-authoritative (and unrecognized) scope of type "my.custom-scope.com/some-field/v1".
+Let's assume the admisson controller is authoritative for scope type "cloud.google.com/service_account/v1". Then the attestation authentication layer verification fails, because the attestation contains an non-authoritative (and unrecognized) scope of type "my.custom-scope.com/some-field/v1".
 
 ### No scope
 
@@ -293,4 +293,4 @@ Assume the admisson controller is authoritative for scope type "cloud.google.com
 
 The attestation above would pass verification regardless of the deployment environment.
 
-if there were a required scope type configured for verification, the attestation layer verification would fail because the attestation contains no scopes.
+If there were a required scope type configured for verification, the attestation layer verification would fail because the attestation contains no scopes.
