@@ -111,6 +111,7 @@ Summary:
 
 - Consumers MUST ignore the `decisionDetails` field during verification. The field is purely informational and is intended only
 for troubleshooting and logging.
+- Consumers MUST reject attestations with scope types they do not recognize.
 - The `predicateType` URI includes the major version number and will always change whenever there is a backwards incompatible change.
 - Minor version changes are always backwards compatible and "monotonic". Such changes do not update the `predicateType`.
 - Producers MAY add custom scope types to the `scopes` field. To avoid type name collisions, a scope type MUST be an URI. See [custom scopes](#custom-scopes).
@@ -118,11 +119,11 @@ for troubleshooting and logging.
 ### Verification
 
 #### Configuration
-Verification of a deployment attestation is typically performed by an admisson controller prior to deploying an artifact / container.
+Verification of a deployment attestation is typically performed by an admission controller prior to deploying an artifact / container.
 The verification configuration MUST be done out-of-band and contain the following pieces of information:
 
 1. Required: The "trusted roots". A trusted root defines an entity that is trusted to generate attestations. A trusted root MUST be configured with at least the following pieces of information:
-    - Required: Which identity is trusted to generate the attestation. The identity may be a cryptographic public key, a Fulcio identity, etc.
+    - Required: The unique identity of the attestation generator. The identity may be a cryptographic public key, an identity in an x509 certificate, etc.
     - Required: Which scope types the attestation generator is authoritative for.
 2. Optional: Required scopes, which is a set of mandatory scope types that MUST be non-empty for verification to pass. Images MUST have attestation(s) over each scope type in the set in order to be admitted. Required scopes are necessary in an attestation, but not sufficient; other scopes present in the attestation MUST match the current environment in order for it to be considered valid. 
 
@@ -130,8 +131,8 @@ The verification configuration MUST be done out-of-band and contain the followin
 
 Verification happens in two phases:
 
-1. Attestation authenticity verification. Performed by the "attestation layer", it takes as input an image, an attestation, an attestation signature and the trusted roots. It verifies the authenticity of the attestation using the trusted roots. If this verification fails, the attestation is considered invalid and MUST be rejected. If a scope type is unknown or not supported by the verifier, verification MUST fail. If a scope type is non-empty and the generator is _not_ authoritative for the scope type, verification MUST fail.
-2. Environment verification. Performed by the "environment layer", it takes as input the intoto payload and matches the scope fields against the deployment environment. Non-empty fields add constraints to the scope and are always interpreted as a logical "AND". The admission controller MUST compare each scope values to its corresponding environment values using an equality comparison. If the values are all equal, verification passes. Otherwise, it MUST fail. Unset scopes (either a scope type with an empty value or a non-present scope) are interpreted as "any value" and are ignored.
+1. Attestation authenticity verification. It takes as input an image, an attestation, an attestation signature and the trusted roots. It verifies the authenticity of the attestation using the trusted roots. If this verification fails, the attestation is considered invalid and MUST be rejected. If a scope type is unrecognized or not supported by the verifier, verification MUST fail. If a scope type is non-empty and the generator is _not_ authoritative for the scope type, verification MUST fail.
+2. Environment verification. It takes as input the intoto payload and matches the scope fields against the deployment environment. Non-empty fields add constraints to the scope and are always interpreted as a logical "AND". The admission controller MUST compare each scope values to its corresponding environment values using an equality comparison. If the values are all equal, verification passes. Otherwise, it MUST fail. Unset scopes (either a scope type with an empty value or a non-present scope) are interpreted as "any value" and are ignored.
 
 ### Supported Scopes
 
@@ -147,7 +148,7 @@ kubernetes.io/pod/cluster_name/v1	    string: A cluster name
 ...
 ```
 
-If a scope type is unknown or not supported by the verifier, verification MUST fail.
+If a scope type is unrecognized or not supported by the verifier, verification MUST fail.
 If the scope matches the environment, verification passes. Otherwise, it MUST fail. A match is positive if all the (non-empty) scope values are equal to the environment values. In the example above:
 
 ```shell
@@ -167,7 +168,7 @@ cloud.google.com/project_id/v1      string: A project id
 ... 
 ```
 
-If a scope type is unknown or not supported by the verifier, verification MUST fail.
+If a scope type is unrecognized or not supported by the verifier, verification MUST fail.
 If the scope matches the environment, verification passes. Otherwise, it MUST fail. A match is positive if all the (non-empty) scope values are equal to the environment values. In the example above:
 
 ```shell
@@ -184,7 +185,7 @@ A Spiffe scope can be represented by (a subset of) the following fields:
 spiffe.io/id/v1 string: The Spiffe ID
 ```
 
-If a scope type is unknown or not supported by the verifier, verification MUST fail.
+If a scope type is unrecognized or not supported by the verifier, verification MUST fail.
 If the scope matches the environment, verification passes. Otherwise, it MUST fail. A match is positive if all the (non-empty) scope values are equal to the environment values. In the example above:
 
 ```shell
@@ -200,7 +201,7 @@ Anyone can define their own scope. To avoid scope type name collisions, the scop
 my.myproject.com/resource/v1   string: resource for environment my.myproject.com
 ```
 
-If a scope type is unknown or not supported by the verifier, verification MUST fail.
+If a scope type is unrecognized or not supported by the verifier, verification MUST fail.
 
 ## Examples
 
@@ -224,7 +225,7 @@ The attestation below intends to restrict the deployment of an image to run unde
 }
 ```
 
-Let's assume the admisson controller is authoritative for scope type "cloud.google.com/service_account/v1". Then the attestation authentication layer verification passes,
+Let's assume the admission controller is authoritative for scope type "cloud.google.com/service_account/v1". Then the attestation authentication layer verification passes,
 because the only scope in the attestation is "cloud.google.com/service_account/v1". If the environment the image is about to be deployed runs under service account "sa-name@project.iam.gserviceaccount.com", the environment verification passes. Otherwise it fails.
 
 If the generator is _not_ authoritative for scope type "cloud.google.com/service_account/v1", then the attestation
@@ -252,7 +253,7 @@ and cluster ID "some-unique@clusterid".
 }
 ```
 
-Let's assume the admisson controller is authoritative for scope type "cloud.google.com/service_account/v1" and "kubernetes.io/pod/*". Then the attestation authentication layer verification passes, because the only scopes in the attestation are of types "cloud.google.com/service_account/v1" and "kubernetes.io/pod/cluster_id/v1". If the environment the image is about to be deployed runs under service account "sa-name@project.iam.gserviceaccount.com" _AND_ the cluster ID is "some-unique@clusterid", the environment verification passes. Otherwise it fails.
+Let's assume the admission controller is authoritative for scope type "cloud.google.com/service_account/v1" and "kubernetes.io/pod/*". Then the attestation authentication layer verification passes, because the only scopes in the attestation are of types "cloud.google.com/service_account/v1" and "kubernetes.io/pod/cluster_id/v1". If the environment the image is about to be deployed runs under service account "sa-name@project.iam.gserviceaccount.com" _AND_ the cluster ID is "some-unique@clusterid", the environment verification passes. Otherwise it fails.
 
 If the trusted roots are configured such that required scopes are "cloud.google.com/service_account/v1" and "kubernetes.io/pod/cluster_name" and the only attestation available is the one above, then the attestation layer verification fails, because required scope type "kubernetes.io/pod/cluster_name" is empty in the attestation.
 
@@ -275,7 +276,7 @@ If the trusted roots are configured such that required scopes are "cloud.google.
 }
 ```
 
-Let's assume the admisson controller is authoritative for scope type "cloud.google.com/service_account/v1". Then the attestation authentication layer verification fails, because the attestation contains an non-authoritative (and unrecognized) scope of type "my.custom-scope.com/some-field/v1".
+Let's assume the admission controller is authoritative for scope type "cloud.google.com/service_account/v1". Then the attestation authentication layer verification fails, because the attestation contains an non-authoritative (and unrecognized) scope of type "my.custom-scope.com/some-field/v1".
 
 ### No scope
 
