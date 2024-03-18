@@ -14,7 +14,7 @@ When deploying an artifact (e.g., a container), we want to restrict which enviro
 the artifact is allowed to be deployed / run. The environment has access
 to resources we want to protect, such as a service account, a Spiffe ID, a Kubernetes pod ID, etc.
 The deployment attestation authoritatively binds an artifact to a deployment environment
-where an artifact is allowed to be deployed. 
+where an artifact is allowed to be deployed.
 
 The ability to bind an artifact to an environment is paramount to reduce the blast radius
 if vulnerabilties are exploited or environments are compromised. Attackers who gain access
@@ -87,16 +87,16 @@ The timestamp indicating what time the attestation was created.
 
 **`decisionDetails.evidence`, optional** (list of [ResourceDescriptor](https://github.com/in-toto/attestation/blob/main/spec/v1/resource_descriptor.md))
 
-List of evidence used to make a decision. Resources may include attestations or other relevant evidence. 
+List of evidence used to make a decision. Resources may include attestations or other relevant evidence.
 
 **`decisionDetails.policy`, optional** (list of [ResourceDescriptor](https://github.com/in-toto/attestation/blob/main/spec/v1/resource_descriptor.md))
 
-List of policies used to make the decision, if any. 
+List of policies used to make the decision, if any.
 
 **`scopes`, optional** map of string to string (scope type to scope value)
 
-A set of protection scopes of different types. A protection scope is set of properties that identifies the deployment environment to be protected.
-A scope defines the target environment that the attestation subject (image, artifact) is bound to.
+A set of protection scopes of different types. A protection scope identifies the deployment environment to be protected and binds the attestation subject (image, artifact) to it.
+A protection scope SHOULD identify the resources to be protected explicitely via their value (e.g., a service account, a Spiffe ID, a Kubernetes pod ID). A protection scope MAY identify the resource implicitly via an autorization / policy URI (e.g., a [Google Cloud Binauthz](https://cloud.google.com/binary-authorization/) URI).
 A scope has a type and a value. A type ends with its version encoded with `/version`, such as `/v1`. Examples of scope types include Kubernetes's objects such as a pod's cluster ID or a GCP service account.
 Let's see some examples:
 
@@ -106,7 +106,7 @@ Let's see some examples:
 
 ### Parsing Rules
 
-This predicate follows the in-toto attestation [parsing rules](https://github.com/in-toto/attestation/blob/main/spec/v1/README.md#parsing-rules). 
+This predicate follows the in-toto attestation [parsing rules](https://github.com/in-toto/attestation/blob/main/spec/v1/README.md#parsing-rules).
 Summary:
 
 - Consumers MUST ignore the `decisionDetails` field during verification. The field is purely informational and is intended only
@@ -125,77 +125,79 @@ The verification configuration MUST be done out-of-band and contain the followin
 1. Required: The "trusted roots". A trusted root defines an entity that is trusted to generate attestations. A trusted root MUST be configured with at least the following pieces of information:
     - Required: The unique identity of the attestation generator. The identity may be a cryptographic public key, an identity in an x509 certificate, etc.
     - Required: Which scope types the attestation generator is authoritative for.
-2. Optional: Required scopes, which is a set of mandatory scope types that MUST be non-empty for verification to pass. Images MUST have attestation(s) over each scope type in the set in order to be admitted. Required scopes are necessary in an attestation, but not sufficient; other scopes present in the attestation MUST match the current environment in order for it to be considered valid. 
+2. Optional: Required scopes, which is a set of mandatory scope types that MUST be non-empty for verification to pass. Images MUST have attestation(s) over each scope type in the set in order to be admitted. Required scopes are necessary in an attestation, but not sufficient; other scopes present in the attestation MUST match the current environment in order for it to be considered valid.
+3. Optional: Required URI for each scope type that identifies a resource implicitely via an autorization URI (see [Schema](#schema)).
 
 #### Logic
 
 Verification happens in two phases:
 
-1. Attestation authenticity verification. It takes as input an image, an attestation, an attestation signature and the trusted roots. It verifies the authenticity of the attestation using the trusted roots. If this verification fails, the attestation is considered invalid and MUST be rejected. If a scope type is unrecognized or not supported by the verifier, verification MUST fail. If a scope type is non-empty and the generator is _not_ authoritative for the scope type, verification MUST fail.
-2. Environment verification. It takes as input the intoto payload and matches the scope fields against the deployment environment. Non-empty fields add constraints to the scope and are always interpreted as a logical "AND". The admission controller MUST compare each scope values to its corresponding environment values using an equality comparison. If the values are all equal, verification passes. Otherwise, it MUST fail. Unset scopes (either a scope type with an empty value or a non-present scope) are interpreted as "any value" and are ignored.
+1. Attestation authenticity verification. It takes as input an artifact, an attestation, an attestation signature and the trusted roots. If verification passes, it outputs the attestation's intoto statement. This phase verifies the authenticity of the attestation using the trusted roots. If this verification fails, the attestation is considered invalid and MUST be rejected. If a scope type is unrecognized or not supported by the verifier, verification MUST fail. If a scope type is non-empty and the generator is _not_ authoritative for the scope type, verification MUST fail. 
+2. Scope match verification. It takes as input the intoto payload from the previous phase. For scopes that identify a resource explicitely (see [Schema](#schema)), the verifier matches each scope value against its corresponding environment value where the artifact is to be deployed
+(e.g., a service account, a pod ID). For scopes that identify a resource implicitly via an autorization URI (see [Schema](#schema)), the verifier matches the value against the value in the confuguration (See [COnfiguration](#configuration)). Non-empty fields add constraints to the scope and are _always_ interpreted as a logical "AND". The verifier MUST compare each scope values to its corresponding environment values using an equality comparison. If the values are all equal, verification passes. Otherwise, it MUST fail. Unset scopes (either a scope type with an empty value or a non-present scope) are interpreted as "any value" and are ignored.
 
 ### Supported Scopes
 
 #### Kubernetes pod scope
 
-A Kubernetes's pod scope can be represented by (a subset of) the following fields:
+The specifications defines the Kubernetes's pod scope as follows:
 
 ```shell
 kubernetes.io/pod/service_account/v1  string: A k8 service account
-kubernetes.io/pod/cluster_id/v1	      string: A cluster ID
-kubernetes.io/pod/namespace/	        string: A namespace
-kubernetes.io/pod/cluster_name/v1	    string: A cluster name
-...
+kubernetes.io/pod/cluster_id/v1       string: A cluster ID
+kubernetes.io/pod/namespace/          string: A namespace
+kubernetes.io/pod/cluster_name/v1     string: A cluster name
 ```
 
-If a scope type is unrecognized or not supported by the verifier, verification MUST fail.
-If the scope matches the environment, verification passes. Otherwise, it MUST fail. A match is positive if all the (non-empty) scope values are equal to the environment values. In the example above:
+The scope match verification compares each non-empty scope value against the corresponding
+environment value the artifact is to be deployed:
 
 ```shell
-attestation's "kubernetes.io/pod/service_account" == environment's "k8's service_account" AND 
+attestation's "kubernetes.io/pod/service_account" == environment's "k8's service_account" AND
 attestation's "kubernetes.io/pod/cluster_id" == environment's "k8'scluster_id" AND 
 ...
 ```
 
 #### GCP scope
 
-A GCP scope can be represented by (a subset of) the following fields:
+The specifications defines the GCP scope as follows:
 
 ```shell
 cloud.google.com/service_account/v1 string: A GCP service account
-cloud.google.com/location/v1		    string: A location
+cloud.google.com/location/v1        string: A location
 cloud.google.com/project_id/v1      string: A project id
-... 
 ```
 
-If a scope type is unrecognized or not supported by the verifier, verification MUST fail.
-If the scope matches the environment, verification passes. Otherwise, it MUST fail. A match is positive if all the (non-empty) scope values are equal to the environment values. In the example above:
+The scope match verification compares each non-empty scope value against the corresponding
+environment value the artifact is to be deployed:
+
 
 ```shell
-attestation's "cloud.google.com/service_account" == environment's "GCP service_account" AND 
+attestation's "cloud.google.com/service_account" == environment's "GCP service_account" AND
 attestation's "cloud.google.com/project_id" == environment's "GCP project ID" AND 
 ...
 ```
 
 #### Spiffe
 
-A Spiffe scope can be represented by (a subset of) the following fields:
+The specifications define the Spiffe scope as follows:
 
 ```shell
 spiffe.io/id/v1 string: The Spiffe ID
 ```
 
-If a scope type is unrecognized or not supported by the verifier, verification MUST fail.
-If the scope matches the environment, verification passes. Otherwise, it MUST fail. A match is positive if all the (non-empty) scope values are equal to the environment values. In the example above:
+The scope match verification compares each non-empty scope value against the corresponding
+environment value the artifact is to be deployed:
+
 
 ```shell
-attestation's "spiffe.io/id" == environment's "Spiffe ID" AND 
+attestation's "spiffe.io/id" == environment's "Spiffe ID" AND
 ...
 ```
 
 #### Custom scopes
 
-Anyone can define their own scope. To avoid scope type name collisions, the scope type name MUST follow a "URI" convention, such as:
+One can define their own scopes. To avoid scope type name collisions, the scope type name MUST b a unique URI, such as:
 
 ```shell
 my.myproject.com/resource/v1   string: resource for environment my.myproject.com
@@ -205,9 +207,16 @@ If a scope type is unrecognized or not supported by the verifier, verification M
 
 ## Examples
 
-### Service Account
+### Example 1: Single scope
 
-The attestation below intends to restrict the deployment of an image to run under GCP service account "sa-name@project.iam.gserviceaccount.com".
+*Trusted (single) root configuration*:
+- A public key (ignored by the example)
+- Authoritative scope types: "cloud.google.com/service_account"
+- Required scope: "cloud.google.com/service_account"
+
+*Deployment request*:
+- For a container running under service account "sa-name@project.iam.gserviceaccount.com"
+- With the following attestation matching the container's digest in the request:
 
 ```jsonc
 {
@@ -225,16 +234,55 @@ The attestation below intends to restrict the deployment of an image to run unde
 }
 ```
 
-Let's assume the admission controller is authoritative for scope type "cloud.google.com/service_account/v1". Then the attestation authentication layer verification passes,
-because the only scope in the attestation is "cloud.google.com/service_account/v1". If the environment the image is about to be deployed runs under service account "sa-name@project.iam.gserviceaccount.com", the environment verification passes. Otherwise it fails.
+*Verification result*:
+- The attestation authentication verification passes, because the trusted root
+  is authoritative for scope type "cloud.google.com/service_account/v1".
+- The scope match verification passes, because the value of the scope matches
+  the value of the environment "sa-name@project.iam.gserviceaccount.com".
 
-If the generator is _not_ authoritative for scope type "cloud.google.com/service_account/v1", then the attestation
-layer verification would not pass and the attestation is rejected as invalid.
+### Example 2: Non-authoritative scope
 
-### Cluster ID and Service Account
+*Trusted (single) root configuration*:
+- A public key (ignored by the example)
+- Authoritative scope types: "cloud.google.com/project_id"
+- Required scope: "cloud.google.com/project_id"
 
-The attestation below intends to restrict the deployment of an image to run under GCP service account "sa-name@project.iam.gserviceaccount.com"
-and cluster ID "some-unique@clusterid".
+*Deployment request*:
+- For a container running under GCP service account "sa-name@project.iam.gserviceaccount.com"
+- With the following attestation matching the container's digest in the request:
+
+```jsonc
+{
+  "_type": "https://in-toto.io/Statement/v1",
+  "subject": [{ ... }],
+
+  "predicateType": "https://in-toto.io/attestation/deployment/v1",
+  "predicate": {
+
+    "creationTime": "...",
+
+    "scopes": {
+      "cloud.google.com/service_account/v1": "sa-name@project.iam.gserviceaccount.com"
+    }
+}
+```
+
+*Verification result*:
+- The attestation authentication verification fails, because the trusted root
+  is _not_ authoritative for scope type "cloud.google.com/service_account/v1".
+- The scope match verification is _not_ performed, because the authentication
+verification failed.
+
+### Example 3: Two required scopes
+
+*Trusted (single) root configuration*:
+- A public key (ignored by the example)
+- Authoritative scope types: "cloud.google.com/service_account" and "kubernetes.io/pod/cluster_id"
+- Required scopes: "cloud.google.com/service_account" and "kubernetes.io/pod/cluster_id"
+
+*Deployment request*:
+- For a container running in cluster ID "unique-cluster-id" under GCP service account "sa-name@project.iam.gserviceaccount.com"
+- With the following attestation matching the container's digest in the request:
 
 ```jsonc
 {
@@ -248,18 +296,150 @@ and cluster ID "some-unique@clusterid".
 
     "scopes": {
       "cloud.google.com/service_account/v1": "sa-name@project.iam.gserviceaccount.com",
-      "kubernetes.io/pod/cluster_id/v1": "some-unique@clusterid"
+      "kubernetes.io/pod/cluster_id/v1": "unique-cluster-id"
     }
 }
 ```
 
-Let's assume the admission controller is authoritative for scope type "cloud.google.com/service_account/v1" and "kubernetes.io/pod/*". Then the attestation authentication layer verification passes, because the only scopes in the attestation are of types "cloud.google.com/service_account/v1" and "kubernetes.io/pod/cluster_id/v1". If the environment the image is about to be deployed runs under service account "sa-name@project.iam.gserviceaccount.com" _AND_ the cluster ID is "some-unique@clusterid", the environment verification passes. Otherwise it fails.
+*Verification result*:
+- The attestation authentication verification succeeds, because the trusted root
+  is authoritative for scope types "cloud.google.com/service_account/v1" and "kubernetes.io/pod/cluster_id/v1" and both scope types are present in the attestation.
+- The scope match verification succeeds, because the  environment the container is to be deployed matches the scope values.
 
-If the trusted roots are configured such that required scopes are "cloud.google.com/service_account/v1" and "kubernetes.io/pod/cluster_name" and the only attestation available is the one above, then the attestation layer verification fails, because required scope type "kubernetes.io/pod/cluster_name" is empty in the attestation.
+### Example 4: Single required scope
 
-### Unrecognized scope
+*Trusted (single) root configuration*:
+- A public key (ignored by the example)
+- Authoritative scope types: "cloud.google.com/service_account" and "kubernetes.io/pod/cluster_id"
+- Required scope: "cloud.google.com/service_account"
+
+*Deployment request*:
+- For a container running under GCP service account "sa-name@project.iam.gserviceaccount.com"
+- With the following attestation matching the container's digest in the request:
 
 ```jsonc
+{
+  "_type": "https://in-toto.io/Statement/v1",
+  "subject": [{ ... }],
+
+  "predicateType": "https://in-toto.io/attestation/deployment/v1",
+  "predicate": {
+
+    "creationTime": "...",
+
+    "scopes": {
+      "cloud.google.com/service_account/v1": "sa-name@project.iam.gserviceaccount.com"
+    }
+}
+```
+
+*Verification result*:
+- The attestation authentication verification succeeds, because the trusted root
+  is authoritative for scope type "cloud.google.com/service_account/v1". The only required scope type is "cloud.google.com/service_account" and is present in the attestation.
+- The scope match verification succeeds, because the  environment the container is to be deployed matches the scope values.
+
+### Example 5: Multiple roots
+
+*Trusted root configurations*:
+- Root 1:
+  - A public key (ignored by the example)
+  - Authoritative scope types: "cloud.google.com/service_account"
+  - Required scope: "cloud.google.com/service_account"
+- Root 2:
+  - A public key (ignored by the example)
+  - Authoritative scope types: "kubernetes.io/pod/cluster_id"
+  - Required scope: "kubernetes.io/pod/cluster_id"
+
+*Deployment request*:
+- For a container running in cluster ID "unique-cluster-id" under GCP service account "sa-name@project.iam.gserviceaccount.com"
+- With the following attestations matching the container's digest in the request:
+
+```jsonc
+{
+  // Assumption: Signed by Root 1
+  "_type": "https://in-toto.io/Statement/v1",
+  "subject": [{ ... }],
+
+  "predicateType": "https://in-toto.io/attestation/deployment/v1",
+  "predicate": {
+
+    "creationTime": "...",
+
+    "scopes": {
+      "cloud.google.com/service_account/v1": "sa-name@project.iam.gserviceaccount.com",
+    }
+}
+```
+
+```jsonc
+{
+  // Assumption: Signed by Root 2
+  "_type": "https://in-toto.io/Statement/v1",
+  "subject": [{ ... }],
+
+  "predicateType": "https://in-toto.io/attestation/deployment/v1",
+  "predicate": {
+
+    "creationTime": "...",
+
+    "scopes": {
+      "kubernetes.io/pod/cluster_id": "unique-cluster-id",
+    }
+}
+```
+*Verification result*:
+- The attestation authentication verification succeeds, because:
+  - Root 1 is authoritative for scope type "cloud.google.com/service_account/v1" and the cope is present in the attestation.
+  - Root 2 is authoritative for scope type "kubernetes.io/pod/cluster_id" and the cope is present in the attestation.
+- The scope match verification succeeds, because:
+  - Root 1: The service account matches the environment the container is to be deployed
+  - Root 2: The cluster ID matches the environment the container is to be deployed.
+
+### Example 6: Implicity scope type as URI
+
+*Trusted (single) root configuration*:
+- A public key (ignored by the example)
+- Authoritative scope types: "binaryauthorization.googleapis.com/policy_uri" and "kubernetes.io/pod/namespace"
+- Required scope: "binaryauthorization.googleapis.com/policy_uri" with URI "projects/foo/platforms/gke/policies/bar".
+
+*Deployment request*:
+- For a container running in a Kubernetes namespace "prod-namespace"
+- With the following attestation matching the container's digest in the request:
+
+```jsonc
+{
+  "_type": "https://in-toto.io/Statement/v1",
+  "subject": [{ ... }],
+
+  "predicateType": "https://in-toto.io/attestation/deployment/v1",
+  "predicate": {
+
+    "creationTime": "...",
+
+    "scopes": {
+      "kubernetes.io/pod/namespace/v1": "prod-namespace",
+      "binaryauthorization.googleapis.com/policy_uri": "projects/foo/platforms/gke/policies/bar"
+    }
+}
+```
+
+*Verification result*:
+- The attestation authentication verification succeeds, because the trusted root
+  is authoritative for scope type "kubernetes.io/pod/namespace/v1" and "binaryauthorization.googleapis.com/policy_uri". The only required scope type is ""binaryauthorization.googleapis.com/policy_uri"" and is present in the attestation.
+- The scope match verification succeeds, because the namespace matches the environment and
+the "policy_uri" matches the configuration.
+
+### Example 7: Unrecognized scope
+
+*Trusted (single) root configuration*:
+- A public key (ignored by the example)
+- Authoritative scope types: "cloud.google.com/service_account"
+- Required scope: "cloud.google.com/service_account"
+
+*Deployment request*:
+- For a container running under service account "sa-name@project.iam.gserviceaccount.com"
+- With the following attestation matching the container's digest in the request:
+
 {
   "_type": "https://in-toto.io/Statement/v1",
   "subject": [{ ... }],
@@ -274,11 +454,23 @@ If the trusted roots are configured such that required scopes are "cloud.google.
       "my.custom-scope.com/some-field/v1": "some-value"
     }
 }
-```
 
-Let's assume the admission controller is authoritative for scope type "cloud.google.com/service_account/v1". Then the attestation authentication layer verification fails, because the attestation contains an non-authoritative (and unrecognized) scope of type "my.custom-scope.com/some-field/v1".
+*Verification result*:
+- The attestation authentication verification fails, because the trusted root
+  is _not_ authoritative for the unknown scope type "my.custom-scope.com/some-field/v1".
+- The scope match verification is _not_ performed, because the authentication
+verification failed.
 
-### No scope
+### Example 8: No scope
+
+*Trusted (single) root configuration*:
+- A public key (ignored by the example)
+- Authoritative scope types: "cloud.google.com/service_account"
+- Required scope: none
+
+*Deployment request*:
+- For a container running under service account "sa-name@project.iam.gserviceaccount.com"
+- With the following attestation matching the container's digest in the request:
 
 ```jsonc
 {
@@ -292,6 +484,19 @@ Let's assume the admission controller is authoritative for scope type "cloud.goo
 }
 ```
 
-The attestation above would pass verification regardless of the deployment environment.
+*Verification result*:
+- The attestation authentication verification passes, because no scopes are required.
+- The scope match verification passes, because there is _no_ verification to perform.
 
-If there were a required scope type configured for verification, the attestation layer verification would fail because the attestation contains no scopes.
+
+```jsonc
+{
+  "_type": "https://in-toto.io/Statement/v1",
+  "subject": [{ ... }],
+
+  "predicateType": "https://in-toto.io/attestation/deployment/v1",
+  "predicate": {
+
+    "creationTime": "...",
+}
+```
