@@ -96,8 +96,8 @@ List of policies used to make the decision, if any.
 **`scopes`, optional** map of string to string (scope type to scope value)
 
 A set of protection scopes of different types. A protection scope identifies the deployment environment to be protected and binds the attestation subject (image, artifact) to it.
-A protection scope SHOULD identify the resources to be protected explicitly via their value (e.g., a service account, a Spiffe ID, a Kubernetes pod ID). A protection scope MAY identify the resource implicitly via an authorization / policy URI (e.g., a [Google Cloud Binauthz](https://cloud.google.com/binary-authorization/) URI) that hides these details.
-A scope has a type and a value. A type ends with its version encoded with `/version`, such as `/v1`. Examples of scope types include Kubernetes's objects such as a pod's cluster ID or a GCP service account.
+A protection scope SHOULD identify the resources to be protected explicitly via their value (e.g., a service account, a Spiffe ID, a Kubernetes pod ID). A protection scope MAY identify the resource implicitly via an authorization / policy URI that hides these details.
+A scope has a type and a value. A type ends with its version encoded with `/version`, such as `/v1`. Examples of explicit scope types include Kubernetes's objects such as a pod's cluster ID or a GCP service account. Examples of implicity scope types incude [Google Cloud Binauthz](https://cloud.google.com/binary-authorization/) policy URIs.
 Let's see some examples:
 
 - If we want to "restrict an image to run only on GKE cluster X", the scope type is a "Kubernetes cluster" and "X" is the scope value.
