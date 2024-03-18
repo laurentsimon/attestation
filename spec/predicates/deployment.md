@@ -19,7 +19,7 @@ where an artifact is allowed to be deployed.
 The ability to bind an artifact to an environment is paramount to reduce the blast radius
 if vulnerabilties are exploited or environments are compromised. Attackers who gain access
 to an environment will pivot based on the privileges of this environment, so it is imperative to
-follow the privilege of least principle and restrict _which_ code is allowed to run on _which_ evironment.
+follow the privilege of least principle and restrict _which_ code is allowed to run in _which_ environment.
 For example, we would not want to deploy a container with remote shell capabilities on a pod that processes
 user credentials, even if this container is integrity protected at the highest SLSA level.
 Conceptually, this is similar to how we think about sandboxing and least-privilege principle on
@@ -41,7 +41,7 @@ better debugging UX for devs, less auditing and production noise for SREs and se
 
 ## Prerequisites
 
-This predicate depends on the [in-toto Attestation Framework].
+This predicate depends on the [in-toto Attestation Framework](https://github.com/laurentsimon/attestation/blob/feat/deploy-att/spec/README.md).
 
 ## Model
 
