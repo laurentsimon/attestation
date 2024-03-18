@@ -97,7 +97,7 @@ List of policies used to make the decision, if any.
 
 A set of protection scopes of different types. A protection scope identifies the deployment environment to be protected and binds the attestation subject (image, artifact) to it.
 A protection scope SHOULD identify the resources to be protected explicitly via their value (e.g., a service account, a Spiffe ID, a Kubernetes pod ID). A protection scope MAY identify the resource implicitly via an authorization / policy URI that hides these details.
-A scope has a type and a value. A type ends with its version encoded with `/version`, such as `/v1`. Examples of explicit scope types include Kubernetes's objects such as a pod's cluster ID or a GCP service account. Examples of implicity scope types incude [Google Cloud Binauthz](https://cloud.google.com/binary-authorization/) policy URIs.
+A scope has a type and a value. A type ends with its version encoded with `/version`, such as `/v1`. Examples of explicit scope types include Kubernetes's objects such as a pod's cluster ID or a GCP service account. Examples of implicit scope types incude [Google Cloud Binauthz](https://cloud.google.com/binary-authorization/) policy URIs.
 Let's see some examples:
 
 - If we want to "restrict an image to run only on GKE cluster X", the scope type is a "Kubernetes cluster" and "X" is the scope value.
@@ -126,7 +126,7 @@ The verification configuration MUST be done out-of-band and contain the followin
     - Required: The unique identity of the attestation generator. The identity may be a cryptographic public key, an identity in an x509 certificate, etc.
     - Required: Which scope types the attestation generator is authoritative for.
 2. Optional: Required scopes, which is a set of mandatory scope types that MUST be non-empty for verification to pass. Images MUST have attestation(s) over each scope type in the set in order to be admitted. Required scopes are necessary in an attestation, but not sufficient; other scopes present in the attestation MUST match the current environment in order for it to be considered valid.
-3. Optional: Required URI for each scope type that identifies a resource implicitely via an autorization URI (see [Schema](#schema)).
+3. Optional: Required URI for each scope type that identifies resources implicitely (see [Schema](#schema)).
 
 #### Logic
 
