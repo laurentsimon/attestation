@@ -133,9 +133,9 @@ The verification configuration MUST be done out-of-band and contain the followin
 Verification happens in two phases:
 
 1. Attestation authenticity verification. It takes as input an artifact, an attestation, an attestation signature and the trusted roots. Using the trusted roots, this phase verifies:
-  - The attestation signature, 
-  - Only the authoritative scopes are present in the attestation
-  - Required scopes are present in the attestation.that the attestation only contains and the preIf verification passes, it outputs the attestation's intoto statement.
+    - The attestation signature, 
+    - Only the authoritative scopes are present in the attestation
+    - Required scopes are present in the attestation.that the attestation only contains and the preIf verification passes, it outputs the attestation's intoto statement.
   If this verification fails, the attestation is considered invalid and MUST be rejected. If a scope type is unrecognized or not supported by the verifier, verification MUST fail. If a scope type is non-empty and the generator is _not_ authoritative for the scope type, verification MUST fail. 
 2. Scope match verification. It takes as input the intoto payload from the previous phase. For scopes that identify a resource explicitely (see [Schema](#schema)), the verifier matches each scope value against its corresponding environment value where the artifact is to be deployed
 (e.g., a service account, a pod ID). For scopes that identify a resource implicitly via an autorization URI (see [Schema](#schema)), the verifier matches the value against the value in the confuguration (See [COnfiguration](#configuration)). Non-empty fields add constraints to the scope and are _always_ interpreted as a logical "AND". The verifier MUST compare each scope values to its corresponding environment values using an equality comparison. If the values are all equal, verification passes. Otherwise, it MUST fail. Unset scopes (either a scope type with an empty value or a non-present scope) are interpreted as "any value" and are ignored.
